@@ -43,6 +43,10 @@ def ensure_user_table(cursor):
         """
     )
 
+_db_connection = None
+_db_cursor = None
+_db_error = None
+
 def connect_db():
     config = get_db_config()
     db_name = config.pop("database")
@@ -66,7 +70,22 @@ def connect_db():
     db.commit()
     return db, cursor
 
-(db, cursor) = connect_db()
+
+def get_db_connection():
+    global _db_connection, _db_cursor, _db_error
+    if _db_connection is not None:
+        return _db_connection, _db_cursor
+    if _db_error is not None:
+        return None, None
+
+    try:
+        _db_connection, _db_cursor = connect_db()
+    except mysql.connector.Error as exc:
+        _db_error = str(exc)
+        print("Database connection error:", _db_error)
+        return None, None
+
+    return _db_connection, _db_cursor
 
 @app.route('/')
 def home():
@@ -76,6 +95,11 @@ def home():
 def submit():
     name = request.form['name']
     email = request.form['email']
+
+    db, cursor = get_db_connection()
+    if db is None or cursor is None:
+        error_message = _db_error or "Database connection is not configured yet."
+        return f"Database error: {error_message}", 500
 
     sql = "INSERT INTO users(name, email) VALUES(%s, %s)"
     cursor.execute(sql, (name, email))
