@@ -1,17 +1,26 @@
 from flask import Flask, render_template, request
 import mysql.connector
+import os
 
 app = Flask(__name__)
 
-# Database connection
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="Root@123",  # Change this to your MySQL password
-    database="studentdb"
-)
+# Database connection using environment variables for Render deployment
+def connect_db():
+    db_host = os.environ.get("DB_HOST", "localhost")
+    db_user = os.environ.get("DB_USER", "root")
+    db_password = os.environ.get("DB_PASSWORD", "Root@123")
+    db_name = os.environ.get("DB_NAME", "studentdb")
 
-cursor = db.cursor()
+    db = mysql.connector.connect(
+        host=db_host,
+        user=db_user,
+        password=db_password,
+        database=db_name
+    )
+    cursor = db.cursor()
+    return db, cursor
+
+(db, cursor) = connect_db()
 
 @app.route('/')
 def home():
@@ -29,4 +38,5 @@ def submit():
     return "✓ Data Stored Successfully!"
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
